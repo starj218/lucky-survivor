@@ -1,1 +1,13 @@
+body {
+    background: #202020;
+    color: white;
+    text-align: center;
+    font-family: Arial;
+}
 
+#game {
+    margin: 30px auto;
+    width: 800px;
+    height: 500px;
+    background: #5b8c5a;
+}

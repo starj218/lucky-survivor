@@ -11,17 +11,21 @@ const VIEW_WIDTH = 800;
 const VIEW_HEIGHT = 500;
 
 // ========================
-// 게임 화면 만들기
+// 게임 화면
 // ========================
 
 game.innerHTML = `
     <div id="world">
         <div id="player"></div>
+        <div id="status">
+            🍀 행운: 0
+        </div>
     </div>
 `;
 
 const world = document.getElementById("world");
 const player = document.getElementById("player");
+const status = document.getElementById("status");
 
 // ========================
 // 플레이어
@@ -33,9 +37,45 @@ let playerY = WORLD_HEIGHT / 2;
 let velocityX = 0;
 let velocityY = 0;
 
-const MAX_SPEED = 5;
+const NORMAL_SPEED = 5;
+let maxSpeed = NORMAL_SPEED;
+
 const ACCELERATION = 0.35;
 const FRICTION = 0.82;
+
+// ========================
+// 아이템 관련
+// ========================
+
+let luck = 0;
+let shield = false;
+
+const ITEM_COUNT = 25;
+
+const itemTypes = [
+    {
+        name: "speed",
+        icon: "⚡",
+        color: "#f1c40f"
+    },
+    {
+        name: "shield",
+        icon: "🛡️",
+        color: "#3498db"
+    },
+    {
+        name: "luck",
+        icon: "🍀",
+        color: "#2ecc71"
+    },
+    {
+        name: "boost",
+        icon: "💨",
+        color: "#e67e22"
+    }
+];
+
+const items = [];
 
 // ========================
 // 장애물
@@ -52,7 +92,7 @@ const obstacles = [
     { x: 1800, y: 1400, width: 250, height: 80 }
 ];
 
-// 장애물 화면에 생성
+// 장애물 생성
 obstacles.forEach((obstacle) => {
 
     const element = document.createElement("div");
@@ -105,6 +145,164 @@ function isColliding(x, y) {
 }
 
 // ========================
+// 아이템 위치가 안전한지 검사
+// ========================
+
+function isSafeItemPosition(x, y) {
+
+    const itemSize = 24;
+
+    // 장애물과 겹치는지 확인
+    for (const obstacle of obstacles) {
+
+        if (
+            x < obstacle.x + obstacle.width &&
+            x + itemSize > obstacle.x &&
+            y < obstacle.y + obstacle.height &&
+            y + itemSize > obstacle.y
+        ) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+// ========================
+// 랜덤 숫자
+// ========================
+
+function randomNumber(min, max) {
+    return Math.random() * (max - min) + min;
+}
+
+// ========================
+// 아이템 생성
+// ========================
+
+function createItem() {
+
+    let x;
+    let y;
+
+    // 안전한 위치가 나올 때까지 다시 뽑기
+    do {
+        x = randomNumber(20, WORLD_WIDTH - 44);
+        y = randomNumber(20, WORLD_HEIGHT - 44);
+    } while (!isSafeItemPosition(x, y));
+
+    // 랜덤 아이템 종류
+    const type =
+        itemTypes[Math.floor(Math.random() * itemTypes.length)];
+
+    const element = document.createElement("div");
+
+    element.className = "item";
+    element.textContent = type.icon;
+
+    element.style.left = x + "px";
+    element.style.top = y + "px";
+
+    element.style.backgroundColor = type.color;
+
+    world.appendChild(element);
+
+    const item = {
+        x: x,
+        y: y,
+        width: 24,
+        height: 24,
+        type: type.name,
+        element: element
+    };
+
+    items.push(item);
+}
+
+// 처음에 아이템 25개 생성
+for (let i = 0; i < ITEM_COUNT; i++) {
+    createItem();
+}
+
+// ========================
+// 아이템 획득 검사
+// ========================
+
+function checkItems() {
+
+    const playerSize = 30;
+
+    for (let i = items.length - 1; i >= 0; i--) {
+
+        const item = items[i];
+
+        if (
+            playerX < item.x + item.width &&
+            playerX + playerSize > item.x &&
+            playerY < item.y + item.height &&
+            playerY + playerSize > item.y
+        ) {
+
+            collectItem(item, i);
+        }
+    }
+}
+
+// ========================
+// 아이템 효과
+// ========================
+
+function collectItem(item, index) {
+
+    // 화면에서 삭제
+    item.element.remove();
+
+    // 배열에서 삭제
+    items.splice(index, 1);
+
+    // 아이템 효과
+    if (item.type === "speed") {
+
+        maxSpeed = 8;
+
+        setTimeout(() => {
+            maxSpeed = NORMAL_SPEED;
+        }, 5000);
+    }
+
+    else if (item.type === "shield") {
+
+        shield = true;
+
+        player.classList.add("shield");
+
+        setTimeout(() => {
+            shield = false;
+            player.classList.remove("shield");
+        }, 10000);
+    }
+
+    else if (item.type === "luck") {
+
+        luck += 1;
+
+        status.textContent =
+            "🍀 행운: " + luck;
+    }
+
+    else if (item.type === "boost") {
+
+        velocityX *= 2;
+        velocityY *= 2;
+    }
+
+    // 3초 후 새로운 아이템 생성
+    setTimeout(() => {
+        createItem();
+    }, 3000);
+}
+
+// ========================
 // 플레이어 이동
 // ========================
 
@@ -129,9 +327,11 @@ function movePlayer() {
         inputX += 1;
     }
 
-    // 대각선 이동 속도 보정
+    // 대각선 속도 보정
     if (inputX !== 0 && inputY !== 0) {
-        const length = Math.sqrt(inputX * inputX + inputY * inputY);
+
+        const length =
+            Math.sqrt(inputX * inputX + inputY * inputY);
 
         inputX /= length;
         inputY /= length;
@@ -143,15 +343,18 @@ function movePlayer() {
 
     // 최대 속도 제한
     const velocityLength =
-        Math.sqrt(velocityX * velocityX + velocityY * velocityY);
+        Math.sqrt(
+            velocityX * velocityX +
+            velocityY * velocityY
+        );
 
-    if (velocityLength > MAX_SPEED) {
+    if (velocityLength > maxSpeed) {
 
         velocityX =
-            (velocityX / velocityLength) * MAX_SPEED;
+            (velocityX / velocityLength) * maxSpeed;
 
         velocityY =
-            (velocityY / velocityLength) * MAX_SPEED;
+            (velocityY / velocityLength) * maxSpeed;
     }
 
     // 마찰
@@ -172,7 +375,8 @@ function movePlayer() {
         !isColliding(nextX, playerY)
     ) {
         playerX = nextX;
-    } else {
+    }
+    else {
         velocityX = 0;
     }
 
@@ -185,7 +389,8 @@ function movePlayer() {
         !isColliding(playerX, nextY)
     ) {
         playerY = nextY;
-    } else {
+    }
+    else {
         velocityY = 0;
     }
 }
@@ -202,7 +407,6 @@ function updateCamera() {
     let cameraY =
         playerY - VIEW_HEIGHT / 2 + 15;
 
-    // 맵 바깥으로 카메라가 나가지 않게
     cameraX = Math.max(
         0,
         Math.min(cameraX, WORLD_WIDTH - VIEW_WIDTH)
@@ -235,6 +439,7 @@ function gameLoop() {
 
     movePlayer();
     updatePlayer();
+    checkItems();
     updateCamera();
 
     requestAnimationFrame(gameLoop);

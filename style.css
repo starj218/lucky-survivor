@@ -2,12 +2,33 @@ body {
     background: #202020;
     color: white;
     text-align: center;
-    font-family: Arial;
+    font-family: Arial, sans-serif;
+}
+
+h1 {
+    margin-bottom: 10px;
 }
 
 #game {
-    margin: 30px auto;
+    position: relative;
+    margin: 20px auto;
+
     width: 800px;
     height: 500px;
+
     background: #5b8c5a;
+
+    border: 5px solid #111;
+    overflow: hidden;
+}
+
+#player {
+    position: absolute;
+
+    width: 30px;
+    height: 30px;
+
+    background: #3498db;
+
+    border-radius: 50%;
 }
